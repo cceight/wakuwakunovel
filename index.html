@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ノベルゲームシーン</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       CSS変数 — 色・サイズの一括管理
+    ============================================================ */
+    :root {
+      --bg-color:      rgb(216, 249, 239);
+      --ui-bg:         rgba(255, 255, 255, 0.72);
+      --ui-border:     rgba(80, 160, 130, 0.45);
+      --ui-glow:       rgba(80, 180, 140, 0.10);
+      --name-bg:       rgba(60, 140, 110, 0.75);
+      --name-color:    #f0fff8;
+      --text-color:    #1a3a30;
+      --text-shadow:   rgba(60, 140, 110, 0.2);
+      --accent:        #3aaa80;
+      --window-radius: 12px;
+    }
+
+    /* ============================================================
+       リセット & ベース
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Shippori Mincho', 'Noto Serif JP', serif;
+    }
+
+    /* ============================================================
+       シーン全体のラッパー（16:9 比率を維持）
+    ============================================================ */
+    #scene {
+      position: relative;
+      width: 100vw;
+      height: 56.25vw;          /* 16:9 */
+      max-height: 100vh;
+      max-width: 177.78vh;      /* 逆算 */
+      margin: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ============================================================
+       背景
+    ============================================================ */
+    #bg {
+      position: absolute; inset: 0;
+      background: var(--bg-color);
+    }
+
+    /* ============================================================
+       立ち絵ラッパー（右寄せ）
+    ============================================================ */
+    #char-wrap {
+      position: absolute;
+      bottom: 22%;
+      right: 4%;
+      height: 72%;
+      display: flex;
+      align-items: flex-end;
+      animation: charFloat 6s ease-in-out infinite;
+    }
+    @keyframes charFloat {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+
+    /* 単色レイヤー（gazou.pngの下） */
+    #char-color-layer {
+      position: absolute;
+      inset: 0;
+      background: rgb(216, 249, 239);
+      transition: background 0.3s ease;
+      border-radius: 4px;
+    }
+
+    #character {
+      position: relative;   /* レイヤーより上 */
+      height: 100%;
+      max-width: 38vw;
+      object-fit: contain;
+      image-rendering: auto;
+      display: block;
+    }
+
+    /* ============================================================
+       お着替えボタン
+    ============================================================ */
+    #dress-btn {
+      position: absolute;
+      top: 38%;
+      left: 3%;
+      z-index: 5;
+
+      /* フォント */
+      font-family: 'Arial Black', 'Impact', sans-serif;
+      font-size: clamp(14px, 2.2vw, 28px);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+
+      /* ギャルっぽい多重ボーダー＋グラデ */
+      background: linear-gradient(135deg, #ff3cac, #ff9f43, #ffe043, #43e8ff, #bc5cff);
+      background-size: 300% 300%;
+      animation: btnGrad 2s linear infinite, btnWiggle 0.15s ease-in-out infinite;
+      border: none;
+      outline: none;
+      padding: clamp(8px,1.2vw,16px) clamp(12px,2vw,28px);
+      border-radius: 50px;
+      cursor: pointer;
+      color: #fff;
+      text-shadow:
+        2px 2px 0 #e00090,
+        -1px -1px 0 #7700cc,
+        0 0 12px #fff;
+      box-shadow:
+        0 0 0 3px #fff,
+        0 0 0 6px #ff3cac,
+        0 0 0 9px #fff,
+        0 4px 20px rgba(255,60,172,0.6),
+        0 0 30px rgba(255,60,172,0.4);
+      transform-origin: center;
+      white-space: nowrap;
+    }
+    #dress-btn:hover {
+      animation: btnGrad 0.6s linear infinite, btnWiggleFast 0.08s ease-in-out infinite;
+      filter: brightness(1.15);
+    }
+    #dress-btn:active {
+      transform: scale(0.93) rotate(-3deg);
+    }
+    @keyframes btnGrad {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes btnWiggle {
+      0%,100% { transform: rotate(-2deg) scale(1); }
+      50%      { transform: rotate(2deg) scale(1.03); }
+    }
+    @keyframes btnWiggleFast {
+      0%,100% { transform: rotate(-3deg) scale(1.05); }
+      50%      { transform: rotate(3deg) scale(1.08); }
+    }
+
+    /* ============================================================
+       セリフウィンドウ
+    ============================================================ */
+    #dialog-area {
+      position: absolute;
+      bottom: 3%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+    }
+
+    /* 名前ラベル */
+    #name-box {
+      display: inline-block;
+      background: var(--name-bg);
+      border: 1px solid var(--ui-border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 4px 24px 6px;
+      font-size: clamp(12px, 1.6vw, 20px);
+      font-weight: 600;
+      color: var(--name-color);
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 10px var(--text-shadow);
+      margin-left: 16px;
+    }
+
+    /* メインウィンドウ */
+    #dialog-window {
+      background: var(--ui-bg);
+      border: 1px solid var(--ui-border);
+      border-radius: 0 var(--window-radius) var(--window-radius) var(--window-radius);
+      padding: clamp(12px, 2vw, 28px) clamp(16px, 3vw, 40px);
+      box-shadow:
+        0 0 0 1px rgba(100,70,180,0.1),
+        0 8px 40px rgba(0,0,0,0.6),
+        inset 0 0 60px var(--ui-glow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+      cursor: pointer;
+    }
+    /* 角のアクセント装飾 */
+    #dialog-window::before,
+    #dialog-window::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--accent);
+      border-style: solid;
+      opacity: 0.7;
+    }
+    #dialog-window::before {
+      top: 8px; left: 8px;
+      border-width: 2px 0 0 2px;
+    }
+    #dialog-window::after {
+      bottom: 8px; right: 8px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* セリフ本文 */
+    #dialog-text {
+      font-size: clamp(13px, 1.8vw, 22px);
+      line-height: 1.85;
+      color: var(--text-color);
+      letter-spacing: 0.05em;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+      min-height: 3.8em;      /* 行数が変わっても高さを確保 */
+    }
+
+    /* 次へ▼ インジケーター */
+    #next-indicator {
+      position: absolute;
+      bottom: 10px; right: 18px;
+      font-size: clamp(10px, 1.2vw, 16px);
+      color: var(--accent);
+      animation: blink 1.2s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; transform: translateY(0); }
+      50%      { opacity: 0.3; transform: translateY(3px); }
+    }
+
+    /* テキストのタイプライター演出 */
+    @keyframes textReveal {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .char-span {
+      display: inline;
+      opacity: 0;
+      animation: textReveal 0.04s forwards;
+    }
+
+    /* ============================================================
+       フェードオーバーレイ（シーン切替用）
+    ============================================================ */
+    #fade-overlay {
+      position: absolute; inset: 0;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 10;
+    }
+    #fade-overlay.fade-in  { opacity: 1; pointer-events: all; }
+    #fade-overlay.fade-out { opacity: 0; }
+  </style>
+</head>
+<body>
+
+<div id="scene">
+  <!-- 背景レイヤー -->
+  <div id="bg"></div>
+
+  <!-- 立ち絵（右寄せ、単色レイヤー付き） -->
+  <div id="char-wrap">
+    <div id="char-color-layer"></div>
+    <img id="character" src="gazou.png" alt="キャラクター立ち絵" />
+  </div>
+
+  <!-- お着替えボタン（左側） -->
+  <button id="dress-btn" onclick="changeColor()">お着替え❤</button>
+
+  <!-- セリフUI -->
+  <div id="dialog-area">
+    <div id="name-box">???</div>
+    <div id="dialog-window" onclick="nextLine()">
+      <div id="dialog-text"></div>
+      <span id="next-indicator">▼</span>
+    </div>
+  </div>
+
+  <!-- フェードオーバーレイ -->
+  <div id="fade-overlay"></div>
+</div>
+
+<script>
+/* ================================================================
+   ★ シナリオデータ — ここを書き替えてセリフを変更する ★
+   各オブジェクトのプロパティ:
+     name  : 名前ボックスに表示する名前
+     text  : セリフ本文（\n で改行）
+   ※ name を空文字 "" にすると名前ボックスを非表示にできる
+================================================================ */
+const SCRIPT = [
+  {
+    name: "???",
+    text: "……気がつけば、ここに立っていた。",
+  },
+  {
+    name: "???",
+    text: "夜空に浮かぶ星が、やけに近く見える。\nまるで、手を伸ばせば届きそうなほど。",
+  },
+  {
+    name: "レイナ",
+    text: "あなたも、この星を探しているの？",
+  },
+  {
+    name: "レイナ",
+    text: "……わたしはずっと、この場所を夢に見ていた。\n夢と現実の、境界線が溶けていくような夜に。",
+  },
+  {
+    name: "",   // 地の文（名前なし）
+    text: "風が吹いた。\n彼女の声は、夜の空気に静かに溶けていった。",
+  },
+];
+/* ================================================================
+   ★ ここまで ★
+================================================================ */
+
+
+/* ---- お着替え：単色レイヤーをランダム色に変える ---- */
+const colorLayer = document.getElementById('char-color-layer');
+const PALETTE = [
+  /* パステル系 */
+  '#ffd6e7','#ffc8e8','#ffd6ff','#e8d5ff','#d5eaff',
+  '#d5fff4','#fffbd5','#ffe8d5','#ffd5d5','#e8ffd5',
+  /* ビビッド系（黒コートに映える） */
+  '#ff6eb4','#ff9f43','#ffe043','#43e8de','#78aaff',
+  '#bc5cff','#a8ff78','#ff6666','#66ccff','#ffcc44',
+  /* ダーク系（落ち着いた雰囲気） */
+  '#2d2a4a','#1a3a2a','#3a1a2a','#1a2a3a','#2a2a1a',
+];
+let lastColorIdx = -1;
+function changeColor() {
+  let idx;
+  do { idx = Math.floor(Math.random() * PALETTE.length); } while (idx === lastColorIdx);
+  lastColorIdx = idx;
+  colorLayer.style.background = PALETTE[idx];
+
+  // ボタンをちょっとバウンス
+  const btn = document.getElementById('dress-btn');
+  btn.style.transform = 'scale(1.25) rotate(5deg)';
+  setTimeout(() => { btn.style.transform = ''; }, 200);
+}
+
+/* ---- テキスト表示 ---- */
+let lineIndex  = 0;
+let isTyping   = false;
+let skipTyping = false;
+
+const nameBox    = document.getElementById('name-box');
+const dialogText = document.getElementById('dialog-text');
+const fadeOverlay = document.getElementById('fade-overlay');
+
+function showLine(idx) {
+  if (idx >= SCRIPT.length) {
+    endScene();
+    return;
+  }
+  const line = SCRIPT[idx];
+
+  // 名前ボックス
+  if (line.name) {
+    nameBox.textContent = line.name;
+    nameBox.style.display = 'inline-block';
+  } else {
+    nameBox.style.display = 'none';
+  }
+
+  // テキストをタイプライター表示
+  dialogText.innerHTML = '';
+  isTyping   = true;
+  skipTyping = false;
+
+  const rawText = line.text.replace(/\\n/g, '\n');
+  const chars   = [...rawText];   // 絵文字・全角対応
+  let   charIdx = 0;
+  const BASE_DELAY = 40; // ms／文字
+
+  function typeNext() {
+    if (skipTyping) {
+      // 一括表示
+      dialogText.innerHTML = rawText.replace(/\n/g, '<br>');
+      isTyping = false;
+      return;
+    }
+    if (charIdx >= chars.length) {
+      isTyping = false;
+      return;
+    }
+    const ch = chars[charIdx++];
+    if (ch === '\n') {
+      dialogText.appendChild(document.createElement('br'));
+    } else {
+      const span = document.createElement('span');
+      span.className = 'char-span';
+      span.style.animationDelay = '0s';
+      span.textContent = ch;
+      dialogText.appendChild(span);
+      // アニメ後に opacity を確定
+      setTimeout(() => { span.style.opacity = '1'; span.style.animation = 'none'; }, 80);
+    }
+    const delay = '。、！？'.includes(ch) ? BASE_DELAY * 4 : BASE_DELAY;
+    setTimeout(typeNext, delay);
+  }
+  typeNext();
+}
+
+function nextLine() {
+  if (isTyping) {
+    // タイプ中ならスキップ
+    skipTyping = true;
+    return;
+  }
+  lineIndex++;
+  showLine(lineIndex);
+}
+
+function endScene() {
+  // エンドフェード
+  fadeOverlay.classList.add('fade-in');
+  setTimeout(() => {
+    dialogText.innerHTML = '<span style="color:var(--accent);letter-spacing:0.2em;">— END —</span>';
+    nameBox.style.display = 'none';
+    document.getElementById('next-indicator').style.display = 'none';
+    fadeOverlay.classList.remove('fade-in');
+    fadeOverlay.classList.add('fade-out');
+  }, 700);
+}
+
+// キーボードでも進行
+document.addEventListener('keydown', e => {
+  if (['Space', 'Enter', 'ArrowRight'].includes(e.code)) {
+    e.preventDefault();
+    nextLine();
+  }
+});
+
+// 初期表示
+showLine(0);
+</script>
+</body>
+</html>
